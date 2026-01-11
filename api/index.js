@@ -5,11 +5,11 @@
  * para funcionar como serverless functions na Vercel.
  */
 
-const { Interpreter } = require('../node_modules/treste/dist/interpreter');
-const { Lexer } = require('../node_modules/treste/dist/lexer');
-const { Parser } = require('../node_modules/treste/dist/parser');
-const { ModuleSystem } = require('../node_modules/treste/dist/module');
-const { StdModules } = require('../node_modules/treste/dist/std-native');
+const { Interpreter } = require('treste/dist/interpreter');
+const { Lexer } = require('treste/dist/lexer');
+const { Parser } = require('treste/dist/parser');
+const { ModuleSystem } = require('treste/dist/module');
+const { StdModules } = require('treste/dist/std-native');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
