@@ -5,3 +5,12 @@ node_modules/
 src/main - Copia.trest
 README.md
 DOCUMENTACAO_COMPLETA.md
+meu-projeto/
+bun.lock
+package-lock.json
+*.swp
+*.swo
+*~
+.vercel/
+.env
+.env.local
