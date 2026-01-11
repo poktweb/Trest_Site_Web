@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "buildCommand": "npm install",
+  "devCommand": "trest src/main.trest",
+  "installCommand": "npm install",
+  "outputDirectory": "."
+}
