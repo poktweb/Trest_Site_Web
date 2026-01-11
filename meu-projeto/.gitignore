@@ -1,0 +1,30 @@
+# Dependências
+node_modules/
+package-lock.json
+
+# Build
+dist/
+*.exe
+*.js.map
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Trest
+*.trest.js
+*.trest.map
+
+# Vercel
+.vercel

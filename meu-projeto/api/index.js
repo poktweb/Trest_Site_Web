@@ -14,8 +14,8 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
-// Caminho do arquivo Trest - ajustado para src/main.trest
-const TREST_FILE = path.join(__dirname, '../src/main.trest');
+// Caminho do arquivo Trest
+const TREST_FILE = path.join(__dirname, '../app.trest');
 
 // Armazenar rotas coletadas (global para o módulo)
 let globalRoutes = null;
