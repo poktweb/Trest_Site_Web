@@ -5,43 +5,141 @@
 импорт * как Crypto измодуля "std/crypto"
 импорт * как String измодуля "std/string"
 импорт * как Array измодуля "std/array"
+импорт * как DB измодуля "std/database"
 
 # Armazenamento de sessões ativas (simples, em memória)
 пусть sessions = {}
 
-# Função para ler JSON de arquivo
-функция lerJSON(arquivo) {
+# Conexão com banco de dados (global)
+пусть db = нуль
+
+# Função para inicializar banco de dados
+функция inicializarBanco() {
     попытаться {
-        если (!FileSystem.exists(arquivo)) {
-            печать("Arquivo não existe: " + arquivo)
-            вернуть []
+        # Garantir que o diretório data existe
+        если (!FileSystem.exists("data")) {
+            FileSystem.createDir("data")
         }
-        пусть conteudo = FileSystem.readFile(arquivo)
-        если (conteudo == "" || conteudo == нуль) {
-            печать("Arquivo vazio: " + arquivo)
-            вернуть []
-        }
-        # Usar JSON.parse conforme exemplo oficial
-        вернуть JSON.parse(conteudo)
+        
+        # Abrir conexão com banco de dados
+        db = DB.открытьБД("data/site.db")
+        
+        # Criar tabelas se não existirem
+        db.execute("CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL
+        )")
+        
+        db.execute("CREATE TABLE IF NOT EXISTS comments (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            text TEXT NOT NULL,
+            date INTEGER NOT NULL
+        )")
+        
+        печать("✅ Banco de dados inicializado: data/site.db")
+        вернуть истина
     } перехватить (erro) {
-        печать("Erro ao ler JSON: " + arquivo + " - " + erro)
-        # Fallback para users.json se houver erro
-        если (arquivo == "data/users.json") {
-            вернуть [{ username = "poktweb", password = "84005787" }]
+        печать("❌ Erro ao inicializar banco de dados: " + erro)
+        вернуть ложь
+    }
+}
+
+# Inicializar banco ao iniciar
+inicializarBanco()
+
+# Função para obter usuários do banco de dados
+функция obterUsuarios() {
+    попытаться {
+        если (db == нуль) {
+            печать("⚠️ Banco de dados não inicializado")
+            вернуть []
         }
+        пусть usuarios = db.query("SELECT * FROM users")
+        вернуть usuarios
+    } перехватить (erro) {
+        печать("Erro ao obter usuários: " + erro)
         вернуть []
     }
 }
 
-# Função para escrever JSON em arquivo
-функция escreverJSON(arquivo, dados) {
+# Função para verificar credenciais de usuário
+функция verificarUsuario(username, password) {
     попытаться {
-        # Usar JSON.stringify conforme exemplo oficial (sem indentação por padrão)
-        пусть jsonStr = JSON.stringify(dados)
-        FileSystem.writeFile(arquivo, jsonStr)
+        если (db == нуль) {
+            печать("⚠️ Banco de dados não inicializado")
+            вернуть ложь
+        }
+        пусть usuarios = db.query("SELECT * FROM users WHERE username = ? AND password = ?", 
+            [username, password])
+        если (Array.длина(usuarios) > 0) {
+            вернуть истина
+        }
+        вернуть ложь
+    } перехватить (erro) {
+        печать("Erro ao verificar usuário: " + erro)
+        вернуть ложь
+    }
+}
+
+# Função para obter comentários do banco de dados
+функция obterComentarios() {
+    попытаться {
+        если (db == нуль) {
+            печать("⚠️ Banco de dados não inicializado")
+            вернуть []
+        }
+        пусть comentarios = db.query("SELECT * FROM comments ORDER BY date DESC")
+        вернуть comentarios
+    } перехватить (erro) {
+        печать("Erro ao obter comentários: " + erro)
+        вернуть []
+    }
+}
+
+# Função para adicionar comentário no banco de dados
+функция adicionarComentario(id, name, text, date) {
+    попытаться {
+        если (db == нуль) {
+            печать("⚠️ Banco de dados não inicializado")
+            вернуть ложь
+        }
+        db.execute("INSERT INTO comments (id, name, text, date) VALUES (?, ?, ?, ?)", 
+            [id, name, text, date])
         вернуть истина
     } перехватить (erro) {
-        печать("Erro ao escrever JSON: " + arquivo + " - " + erro)
+        печать("Erro ao adicionar comentário: " + erro)
+        вернуть ложь
+    }
+}
+
+# Função para atualizar comentário no banco de dados
+функция atualizarComentario(id, text) {
+    попытаться {
+        если (db == нуль) {
+            печать("⚠️ Banco de dados não inicializado")
+            вернуть ложь
+        }
+        пусть resultado = db.execute("UPDATE comments SET text = ? WHERE id = ?", [text, id])
+        вернуть resultado.changes > 0
+    } перехватить (erro) {
+        печать("Erro ao atualizar comentário: " + erro)
+        вернуть ложь
+    }
+}
+
+# Função para deletar comentário do banco de dados
+функция deletarComentario(id) {
+    попытаться {
+        если (db == нуль) {
+            печать("⚠️ Banco de dados não inicializado")
+            вернуть ложь
+        }
+        пусть resultado = db.execute("DELETE FROM comments WHERE id = ?", [id])
+        вернуть resultado.changes > 0
+    } перехватить (erro) {
+        печать("Erro ao deletar comentário: " + erro)
         вернуть ложь
     }
 }
@@ -834,18 +932,9 @@ servidor.post("/api/login", функция(запрос, ответ) {
         пусть password = body.password
         печать("Login attempt - username: " + username + ", password: " + password)
         
-        # Ler usuários do arquivo
-        пусть users = lerJSON("data/users.json")
-        печать("Users loaded: " + Array.длина(users))
-        
-        пусть userEncontrado = ложь
-        для (пусть user из users) {
-            печать("Checking user: " + user.username + " == " + username + " && " + user.password + " == " + password)
-            если (user.username == username && user.password == password) {
-                userEncontrado = истина
-                прервать
-            }
-        }
+        # Verificar credenciais no banco de dados
+        печать("Verificando credenciais para: " + username)
+        пусть userEncontrado = verificarUsuario(username, password)
         
         если (userEncontrado) {
             пусть token = criarToken()
@@ -866,7 +955,7 @@ servidor.post("/api/login", функция(запрос, ответ) {
 # API para obter comentários
 servidor.get("/api/comments", функция(запрос, ответ) {
     попытаться {
-        пусть comments = lerJSON("data/comments.json")
+        пусть comments = obterComentarios()
         ответ.json(comments)
     } перехватить (erro) {
         ответ.status(500)
@@ -878,7 +967,6 @@ servidor.get("/api/comments", функция(запрос, ответ) {
 servidor.post("/api/comments", функция(запрос, ответ) {
     попытаться {
         пусть body = запрос.body
-        пусть comments = lerJSON("data/comments.json")
         
         пусть novoComment = {
             id = Date.timestamp() + "-" + Crypto.randomBytes(8),
@@ -887,13 +975,17 @@ servidor.post("/api/comments", функция(запрос, ответ) {
             date = Date.timestamp()
         }
         
-        Array.добавить(comments, novoComment)
-        escreverJSON("data/comments.json", comments)
+        пусть sucesso = adicionarComentario(novoComment.id, novoComment.name, novoComment.text, novoComment.date)
         
-        ответ.json({ success = истина, comment = novoComment })
+        если (sucesso) {
+            ответ.json({ success = истина, comment = novoComment })
+        } иначе {
+            ответ.status(500)
+            ответ.json({ success = ложь, error = "Erro ao adicionar comentário" })
+        }
     } перехватить (erro) {
         ответ.status(500)
-        ответ.json({ success = ложь, error = "Erro ao adicionar comentário" })
+        ответ.json({ success = ложь, error = "Erro ao adicionar comentário: " + erro })
     }
 })
 
@@ -905,7 +997,7 @@ servidor.get("/admin", функция(запрос, ответ) {
         ответ.send("")
     } иначе {
         попытаться {
-        пусть comments = lerJSON("data/comments.json")
+        пусть comments = obterComentarios()
         пусть html = "<!DOCTYPE html>\n" +
 "<html lang=\"pt-BR\">\n" +
 "<head>\n" +
@@ -1068,25 +1160,20 @@ servidor.post("/api/admin/comments/:id", функция(запрос, ответ
         ответ.json({ success = ложь, error = "Não autorizado" })
     } иначе {
         попытаться {
-        пусть commentId = запрос.pathname
-        # Extrair ID da URL
-        пусть partes = String.разделить(commentId, "/")
-        пусть id = partes[Array.длина(partes) - 1]
-        
-        пусть comments = lerJSON("data/comments.json")
-        пусть body = запрос.body
-        
-        пусть encontrado = ложь
-        для (пусть i = 0; i < Array.длина(comments); i = i + 1) {
-            если (comments[i].id == id) {
-                comments[i].text = body.text
-                encontrado = истина
-                прервать
-            }
+        # Extrair ID dos parâmetros da rota
+        пусть id = запрос.params.id
+        если (id == нуль) {
+            # Fallback: extrair da URL se params não estiver disponível
+            пусть commentId = запрос.pathname
+            пусть partes = String.разделить(commentId, "/")
+            id = partes[Array.длина(partes) - 1]
         }
         
-        если (encontrado) {
-            escreverJSON("data/comments.json", comments)
+        пусть body = запрос.body
+        
+        пусть sucesso = atualizarComentario(id, body.text)
+        
+        если (sucesso) {
             ответ.json({ success = истина })
         } иначе {
             ответ.status(404)
@@ -1106,21 +1193,23 @@ servidor.delete("/api/admin/comments/:id", функция(запрос, отве
         ответ.json({ success = ложь, error = "Não autorizado" })
     } иначе {
         попытаться {
-            пусть commentId = запрос.pathname
-            пусть partes = String.разделить(commentId, "/")
-            пусть id = partes[Array.длина(partes) - 1]
-            
-            пусть comments = lerJSON("data/comments.json")
-            пусть novosComments = []
-            
-            для (пусть comment из comments) {
-                если (comment.id != id) {
-                    Array.добавить(novosComments, comment)
-                }
+            # Extrair ID dos parâmetros da rota
+            пусть id = запрос.params.id
+            если (id == нуль) {
+                # Fallback: extrair da URL se params não estiver disponível
+                пусть commentId = запрос.pathname
+                пусть partes = String.разделить(commentId, "/")
+                id = partes[Array.длина(partes) - 1]
             }
             
-            escreverJSON("data/comments.json", novosComments)
-            ответ.json({ success = истина })
+            пусть sucesso = deletarComentario(id)
+            
+            если (sucesso) {
+                ответ.json({ success = истина })
+            } иначе {
+                ответ.status(404)
+                ответ.json({ success = ложь, error = "Comentário não encontrado" })
+            }
         } перехватить (erro) {
             ответ.status(500)
             ответ.json({ success = ложь, error = "Erro ao deletar comentário" })

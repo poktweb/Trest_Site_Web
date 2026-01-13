@@ -1,0 +1,109 @@
+# Script de migração: JSON para SQLite
+# Este script importa os dados dos arquivos JSON para o banco de dados SQLite
+
+импорт * как DB измодуля "std/database"
+импорт * как FileSystem измодуля "std/filesystem"
+импорт * как JSON измодуля "std/json"
+
+печать("🔄 Iniciando migração de JSON para SQLite...")
+
+# Abrir conexão com banco de dados
+пусть db = DB.открытьБД("data/site.db")
+
+печать("✅ Banco de dados aberto: data/site.db")
+
+# Criar tabela de usuários
+печать("📋 Criando tabela 'users'...")
+db.execute("CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL
+)")
+
+# Criar tabela de comentários
+печать("📋 Criando tabela 'comments'...")
+db.execute("CREATE TABLE IF NOT EXISTS comments (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    text TEXT NOT NULL,
+    date INTEGER NOT NULL
+)")
+
+печать("✅ Tabelas criadas com sucesso!")
+
+# Migrar usuários
+печать("")
+печать("👥 Migrando usuários de data/users.json...")
+попытаться {
+    если (FileSystem.exists("data/users.json")) {
+        пусть conteudo = FileSystem.readFile("data/users.json")
+        если (conteudo != "" && conteudo != нуль) {
+            пусть users = JSON.parse(conteudo)
+            пусть count = 0
+            для (пусть user из users) {
+                попытаться {
+                    db.execute("INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)", 
+                        [user.username, user.password])
+                    count = count + 1
+                } перехватить (erro) {
+                    печать("⚠️ Erro ao inserir usuário " + user.username + ": " + erro)
+                }
+            }
+            печать("✅ " + count + " usuário(s) migrado(s)")
+        } иначе {
+            печать("⚠️ Arquivo users.json está vazio")
+        }
+    } иначе {
+        печать("⚠️ Arquivo data/users.json não encontrado, criando usuário padrão...")
+        db.execute("INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)", 
+            ["poktweb", "84005787"])
+        печать("✅ Usuário padrão criado")
+    }
+} перехватить (erro) {
+    печать("❌ Erro ao migrar usuários: " + erro)
+}
+
+# Migrar comentários
+печать("")
+печать("💬 Migrando comentários de data/comments.json...")
+попытаться {
+    если (FileSystem.exists("data/comments.json")) {
+        пусть conteudo = FileSystem.readFile("data/comments.json")
+        если (conteudo != "" && conteudo != нуль) {
+            пусть comments = JSON.parse(conteudo)
+            пусть count = 0
+            для (пусть comment из comments) {
+                попытаться {
+                    db.execute("INSERT OR IGNORE INTO comments (id, name, text, date) VALUES (?, ?, ?, ?)", 
+                        [comment.id, comment.name, comment.text, comment.date])
+                    count = count + 1
+                } перехватить (erro) {
+                    печать("⚠️ Erro ao inserir comentário " + comment.id + ": " + erro)
+                }
+            }
+            печать("✅ " + count + " comentário(s) migrado(s)")
+        } иначе {
+            печать("ℹ️ Arquivo comments.json está vazio (nenhum comentário para migrar)")
+        }
+    } иначе {
+        печать("ℹ️ Arquivo data/comments.json não encontrado (nenhum comentário para migrar)")
+    }
+} перехватить (erro) {
+    печать("❌ Erro ao migrar comentários: " + erro)
+}
+
+# Verificar dados migrados
+печать("")
+печать("📊 Verificando dados migrados...")
+пусть usersCount = db.query("SELECT COUNT(*) as count FROM users")
+пусть commentsCount = db.query("SELECT COUNT(*) as count FROM comments")
+
+печать("👥 Usuários no banco: " + usersCount[0].count)
+печать("💬 Comentários no banco: " + commentsCount[0].count)
+
+# Fechar conexão
+db.close()
+
+печать("")
+печать("✅ Migração concluída com sucesso!")
+печать("📁 Banco de dados criado em: data/site.db")
